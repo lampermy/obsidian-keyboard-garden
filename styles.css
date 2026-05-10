@@ -1,0 +1,237 @@
+/* Keyboard Garden Plugin Styles */
+
+.keyboard-garden-container {
+  padding: 10px;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.keyboard-garden-header {
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.keyboard-garden-header h3 {
+  margin: 0 0 5px 0;
+  font-size: 16px;
+}
+
+.keyboard-garden-stats {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Keyboard Layout */
+.keyboard-garden-keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 15px;
+}
+
+.keyboard-row {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+}
+
+.keyboard-indent {
+  display: inline-block;
+}
+
+/* Key Styles */
+.keyboard-key {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 10px;
+}
+
+.keyboard-key:hover {
+  background: var(--background-modifier-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.keyboard-key.key-pressed {
+  animation: keyPress 0.3s ease;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+@keyframes keyPress {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Space Key */
+.keyboard-space {
+  width: 150px;
+}
+
+.key-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-normal);
+  z-index: 1;
+}
+
+/* Flower Container */
+.flower-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.flower {
+  transition: all 0.5s ease;
+  filter: drop-shadow(0 0 2px currentColor);
+}
+
+.key-count {
+  font-size: 8px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Legend */
+.keyboard-garden-legend {
+  padding: 10px;
+  background: var(--background-secondary);
+  border-radius: 6px;
+  margin-top: 15px;
+}
+
+.keyboard-garden-legend h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: var(--text-normal);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.legend-emoji {
+  font-size: 16px;
+  width: 24px;
+  text-align: center;
+}
+
+.legend-label {
+  color: var(--text-muted);
+}
+
+/* Top Keys */
+.top-keys {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.top-key-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+  font-size: 11px;
+}
+
+.top-key-rank {
+  color: var(--text-muted);
+  width: 15px;
+}
+
+.top-key {
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.top-key-count {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 300px) {
+  .keyboard-key {
+    width: 25px;
+    height: 25px;
+  }
+
+  .keyboard-space {
+    width: 120px;
+  }
+
+  .key-label {
+    font-size: 9px;
+  }
+}
+
+/* Dark Mode Adjustments */
+.theme-dark .keyboard-key {
+  background: var(--background-primary-alt);
+  border-color: var(--background-modifier-border-focus);
+}
+
+.theme-dark .keyboard-key:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* Animation for flower growth */
+@keyframes flowerBloom {
+  0% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(180deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1) rotate(360deg);
+    opacity: 1;
+  }
+}
+
+.flower-container .flower {
+  animation: flowerBloom 0.5s ease-out;
+}
+
+/* Special styling for different flower stages */
+.keyboard-key:has(.flower-container .flower) {
+  border-color: #90EE90;
+}
+
+.keyboard-key:has(.flower-container .flower[style*="24px"]),
+.keyboard-key:has(.flower-container .flower[style*="20px"]) {
+  border-color: #FFD700;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+}

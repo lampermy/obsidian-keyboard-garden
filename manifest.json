@@ -1,0 +1,10 @@
+{
+  "id": "keyboard-garden",
+  "name": "Keyboard Garden",
+  "version": "1.0.0",
+  "description": "A virtual keyboard that grows flowers based on your typing frequency. Watch your keyboard blossom as you write!",
+  "author": "Lamper",
+  "authorUrl": "https://github.com/lampermy",
+  "isDesktopOnly": false,
+  "minAppVersion": "1.0.0"
+}
