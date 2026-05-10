@@ -1,0 +1,29 @@
+{
+  "name": "obsidian-keyboard-garden",
+  "version": "1.0.0",
+  "description": "A virtual keyboard that grows flowers based on your typing frequency",
+  "main": "main.js",
+  "scripts": {
+    "dev": "rollup --config rollup.config.js --watch",
+    "build": "rollup --config rollup.config.js --environment BUILD:production"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "keyboard",
+    "statistics",
+    "visualization"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "@types/node": "^20.0.0",
+    "obsidian": "https://github.com/obsidianmd/obsidian-api/archive/master.zip",
+    "rollup": "^3.0.0",
+    "tslib": "^2.4.0",
+    "typescript": "^5.0.0"
+  }
+}

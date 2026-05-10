@@ -1,0 +1,10 @@
+{
+  "id": "keyboard-garden-v2",
+  "name": "Keyboard Garden V2",
+  "version": "2.0.0",
+  "description": "V2: Seasonal keycap themes, weather effects, and time-based statistics. Watch your keyboard bloom through the seasons!",
+  "author": "Lamper",
+  "authorUrl": "https://github.com/lampermy",
+  "isDesktopOnly": false,
+  "minAppVersion": "1.0.0"
+}
