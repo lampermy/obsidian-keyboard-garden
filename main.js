@@ -1,8 +1,9 @@
 /* ─── Keyboard Garden V2 ────────────────────────────────────────
- * Seasonal keycap themes · 3D keys · Weather effects · Time stats
+ * Pomodoro Timer · Music Player · Focus Stats
+ * Keyboard Garden · Weather · Time-based Statistics
  * ──────────────────────────────────────────────────────────── */
 
-const { Plugin, ItemView, PluginSettingTab, Setting } = require('obsidian');
+const { Plugin, ItemView, PluginSettingTab, Setting, Notice } = require('obsidian');
 const VIEW_TYPE = 'keyboard-garden-v2-view';
 
 // ═══════════════════════════════════════════════════════════════
@@ -15,6 +16,11 @@ const L = {
     settings: {
       title:'键盘花园 V2 设置',
       main:'主要', weather:'天气效果', display:'显示', misc:'其他', management:'管理',
+      // module toggles
+      moduleToggle:'模块开关', moduleToggleDesc:'启用/禁用各功能模块，被禁用的模块不会在界面显示。',
+      enableGarden:'键盘花园', enableGardenDesc:'显示虚拟键盘和花朵成长系统。',
+      enablePomodoro:'番茄钟', enablePomodoroDesc:'番茄工作法计时器和专注记录统计。',
+      enableMusic:'音乐播放', enableMusicDesc:'从选定文件夹播放音乐文件。',
       lang:'界面语言', langDesc:'设置面板和统计栏显示语言。',
       keycapTheme:'键帽主题', keycapThemeDesc:'切换键帽配色方案：四季、海洋、森林，或自定义颜色。',
       baseKeySize:'基础键宽', baseKeySizeDesc:'标准按键宽度(像素)，影响整体键盘缩放。默认: 20',
@@ -47,7 +53,27 @@ const L = {
       // weather info
       weatherThreshold:'天气触发阈值', weatherThresholdDesc:'设置每种天气的总敲击触发门槛。0 表示禁用该天气。',
       weatherThresholdCloud:'☁️ 云朵飘过触发阈值', weatherThresholdRain:'🌧️ 下雨触发阈值', weatherThresholdSnow:'❄️ 下雪触发阈值', weatherThresholdHail:'🧊 冰雹触发阈值',
-      weatherInfo:'天气概率：云朵 30%、下雨 20%、下雪 25%、冰雹 12%，每 2 分钟最多触发一次。',
+      weatherInfo:'每 2 分钟最多触发一次。',
+      // pomodoro
+      pomodoroSection:'🍅 番茄钟设置', pomodoroSectionDesc:'番茄工作法计时器配置。',
+      pomodoroDuration:'专注时长', pomodoroDurationDesc:'一次番茄的专注时长（分钟）。',
+      pomodoroBreakDuration:'短休息时长', pomodoroBreakDurationDesc:'完成一次番茄后的休息时长（分钟）。',
+      pomodoroLongBreakDuration:'长休息时长', pomodoroLongBreakDurationDesc:'每 4 次番茄后进入长休息（分钟）。',
+      pomodoroSound:'番茄结束提示音', pomodoroSoundDesc:'番茄或休息结束时播放提示音。',
+      pomodoroAutoStartBreak:'自动开始休息', pomodoroAutoStartBreakDesc:'专注结束后自动进入休息倒计时。',
+      pomodoroAutoStartFocus:'自动开始下一个番茄', pomodoroAutoStartFocusDesc:'休息结束后自动开始下一个番茄。',
+      pomodoroResetToday:'重置今日记录', pomodoroResetTodayDesc:'将今日番茄计数和专注记录清零。',
+      // focus stats
+      focusStats:'🍅 专注统计', focusStatsToday:'今日专注', focusStatsWeek:'本周专注', focusStatsMonth:'本月专注',
+      focusStatsSessions:'专注次数', focusStatsDuration:'总时长',
+      // music
+      musicSection:'🎵 音乐设置', musicSectionDesc:'选择音乐文件夹并配置播放器。',
+      musicFolder:'音乐文件夹', musicFolderDesc:'选择包含音乐文件的文件夹（支持 mp3/wav/ogg/m4a）。',
+      musicFolderSelect:'选择文件夹', musicFolderReset:'清除选择',
+      musicVolume:'音量', musicVolumeDesc:'播放器音量 (0-100)。',
+      musicShuffle:'随机播放', musicShuffleDesc:'启用随机播放顺序。',
+      musicAutoPlay:'自动播放', musicAutoPlayDesc:'启用后进入键盘花园时自动播放。',
+      musicShowMiniPlayer:'显示迷你播放器', musicShowMiniPlayerDesc:'在键盘花园底部显示迷你播放器控制条。',
       // dropdowns
       pxSmall:'16px (小)', px18:'18px', pxDefault:'20px (默认)', px22:'22px', pxLarge:'24px (大)',
       gapTight:'0px (紧凑)', gap1:'1px', gap2:'2px (默认)', gap3:'3px', gapLoose:'4px (宽松)',
@@ -55,6 +81,10 @@ const L = {
       themeGarden:'🌻 花园', themeForest:'🌲 森林', themeFruit:'🍎 水果', themeCustom:'🎨 自定义',
       exportData:'导出数据', exportDataDesc:'下载 JSON 格式的花园数据备份',
       importData:'导入数据', importDataDesc:'从 JSON 备份文件恢复花园数据',
+      // pomodoro labels
+      pomoFocus:'专注', pomoBreak:'休息', pomoLongBreak:'长休息',
+      pomoStart:'开始', pomoPause:'暂停', pomoResume:'继续', pomoStop:'结束',
+      pomoDone:'完成!',
     },
   },
   en: {
@@ -63,6 +93,10 @@ const L = {
     settings: {
       title:'Keyboard Garden V2 Settings',
       main:'Main', weather:'Weather', display:'Display', misc:'Misc', management:'Management',
+      moduleToggle:'Module Toggles', moduleToggleDesc:'Enable/disable each feature module. Disabled modules won\'t appear in the UI.',
+      enableGarden:'Keyboard Garden', enableGardenDesc:'Show virtual keyboard with flower growth system.',
+      enablePomodoro:'Pomodoro Timer', enablePomodoroDesc:'Pomodoro technique timer and focus session tracking.',
+      enableMusic:'Music Player', enableMusicDesc:'Play music files from a selected folder.',
       lang:'Language', langDesc:'UI language for settings and stats.',
       keycapTheme:'Keycap Theme', keycapThemeDesc:'Choose keycap style: seasonal, ocean, forest, or custom colors.',
       baseKeySize:'1U Base Size', baseKeySizeDesc:'Standard key width in pixels. Affects overall scale. Default: 20',
@@ -85,6 +119,7 @@ const L = {
       bgEnabled:'Background', bgEnabledDesc:'Add background color to keyboard canvas for better depth.',
       bgColor:'Background Color', bgColorDesc:'Custom background color for keyboard canvas.',
       customFlower:'Custom Flowers', customFlowerDesc:'Override flower emoji for each growth stage (per theme).',
+      flowerStage:'Stage {s}',
       customStageMin:'Stage {s} Min', customStageMinDesc:'Minimum keystrokes to reach this stage.',
       reset:'Reset Statistics', resetDesc:'Clear all keystroke counts and daily history. Garden starts fresh.',
       resetBtn:'Reset All',
@@ -93,13 +128,32 @@ const L = {
       customBorder:'Border Color', customBorderHover:'Hover Border', customLabel:'Label Color',
       weatherThreshold:'Weather Trigger Thresholds', weatherThresholdDesc:'Set total keystroke threshold for each weather. 0 disables a type.',
       weatherThresholdCloud:'☁️ Cloud drift threshold', weatherThresholdRain:'🌧️ Rain threshold', weatherThresholdSnow:'❄️ Snow threshold', weatherThresholdHail:'🧊 Hail threshold',
-      weatherInfo:'Probabilities: cloud 30%, rain 20%, snow 25%, hail 12%. Cooldown: 2 minutes.',
+      weatherInfo:'Cooldown: 2 minutes.',
+      pomodoroSection:'🍅 Pomodoro Settings', pomodoroSectionDesc:'Configure Pomodoro timer behavior.',
+      pomodoroDuration:'Focus Duration', pomodoroDurationDesc:'Length of each focus session (minutes).',
+      pomodoroBreakDuration:'Short Break', pomodoroBreakDurationDesc:'Break length after each pomodoro (minutes).',
+      pomodoroLongBreakDuration:'Long Break', pomodoroLongBreakDurationDesc:'Break after every 4 pomodoros (minutes).',
+      pomodoroSound:'Session Sound Alert', pomodoroSoundDesc:'Play a sound when a session ends.',
+      pomodoroAutoStartBreak:'Auto Start Break', pomodoroAutoStartBreakDesc:'Automatically start break timer after focus ends.',
+      pomodoroAutoStartFocus:'Auto Start Next Pomodoro', pomodoroAutoStartFocusDesc:'Automatically start next pomodoro after break ends.',
+      pomodoroResetToday:'Reset Today\'s Stats', pomodoroResetTodayDesc:'Clear today\'s pomodoro count and focus records.',
+      focusStats:'🍅 Focus Stats', focusStatsToday:'Today Focus', focusStatsWeek:'This Week', focusStatsMonth:'This Month',
+      focusStatsSessions:'Sessions', focusStatsDuration:'Duration',
+      musicSection:'🎵 Music Settings', musicSectionDesc:'Configure music folder and player.',
+      musicFolder:'Music Folder', musicFolderDesc:'Select folder containing music files (mp3/wav/ogg/m4a).',
+      musicFolderSelect:'Select Folder', musicFolderReset:'Clear Selection',
+      musicVolume:'Volume', musicVolumeDesc:'Player volume (0-100).',
+      musicShuffle:'Shuffle', musicShuffleDesc:'Enable shuffled playback order.',
+      musicAutoPlay:'Auto Play', musicAutoPlayDesc:'Auto-play when keyboard garden view opens.',
+      musicShowMiniPlayer:'Show Mini Player', musicShowMiniPlayerDesc:'Show compact player controls at bottom of keyboard garden.',
       pxSmall:'16px (Small)', px18:'18px', pxDefault:'20px (Default)', px22:'22px', pxLarge:'24px (Large)',
       gapTight:'0px (Tight)', gap1:'1px', gap2:'2px (Default)', gap3:'3px', gapLoose:'4px (Loose)',
       speedSlow:'0.5x (Slow)', speed75:'0.75x', speedNormal:'1x (Default)', speed15:'1.5x', speedFast:'2x (Fast)',
       themeGarden:'🌻 Garden', themeForest:'🌲 Forest', themeFruit:'🍎 Fruit', themeCustom:'🎨 Custom',
       exportData:'Export Data', exportDataDesc:'Download garden data as JSON backup',
       importData:'Import Data', importDataDesc:'Restore garden data from a JSON backup',
+      pomoFocus:'Focus', pomoBreak:'Break', pomoLongBreak:'Long Break',
+      pomoStart:'Start', pomoPause:'Pause', pomoResume:'Resume', pomoStop:'Stop', pomoDone:'Done!',
     },
   },
 };
@@ -112,6 +166,9 @@ function tr(s, key) {
 // DEFAULT SETTINGS
 // ═══════════════════════════════════════════════════════════════
 const DEFAULT_SETTINGS = {
+  // Module toggles
+  enableGarden: true, enablePomodoro: true, enableMusic: false,
+  // Keyboard Garden
   baseKeySize: 20, showLabels: true, showCounts: true,
   flowerTheme: 'garden', animationSpeed: 1, showTotalStats: true,
   keyGap: 2, ignoreModifiers: false,
@@ -127,10 +184,16 @@ const DEFAULT_SETTINGS = {
   showWPM: true,
   customStageMins: [1,11,31,81,201,501,1001,3001,5001],
   dailyCounts: {}, totalKeystrokes: 0, keyCounts: {},
+  // Pomodoro
+  pomodoroDuration: 25, pomodoroBreakDuration: 5, pomodoroLongBreakDuration: 15,
+  pomodoroSound: true, pomodoroAutoStartBreak: false, pomodoroAutoStartFocus: false,
+  pomodoroCount: 0, pomodoroSessions: [],   // { date, startTime, endTime, duration }
+  // Music
+  musicFolder: '', musicVolume: 80, musicShuffle: false, musicAutoPlay: false, musicShowMiniPlayer: true,
 };
 
 // ═══════════════════════════════════════════════════════════════
-// KEYCAP THEMES ─ reworked: 7 themes with distinct seasonal colors
+// KEYCAP THEMES
 // ═══════════════════════════════════════════════════════════════
 const KEYCAP_THEMES = {
   default: {
@@ -218,7 +281,6 @@ function toEv(k) {
   return m[k]||k;
 }
 const MODS=new Set(['Shift','Control','Alt','Meta','CapsLock','Fn','OS','Symbol','Hyper']);
-// Physical key code → display key (ROWS identifier)
 const CODE_MAP={'Backquote':'`','Digit1':'1','Digit2':'2','Digit3':'3','Digit4':'4','Digit5':'5','Digit6':'6','Digit7':'7','Digit8':'8','Digit9':'9','Digit0':'0','Minus':'-','Equal':'=','Backspace':'⌫','Tab':'tab','KeyQ':'Q','KeyW':'W','KeyE':'E','KeyR':'R','KeyT':'T','KeyY':'Y','KeyU':'U','KeyI':'I','KeyO':'O','KeyP':'P','BracketLeft':'[','BracketRight':']','Backslash':'\\','CapsLock':'caps','KeyA':'A','KeyS':'S','KeyD':'D','KeyF':'F','KeyG':'G','KeyH':'H','KeyJ':'J','KeyK':'K','KeyL':'L','Semicolon':';','Quote':"'",'Enter':'enter','ShiftLeft':'shift','ShiftRight':'shift2','KeyZ':'Z','KeyX':'X','KeyC':'C','KeyV':'V','KeyB':'B','KeyN':'N','KeyM':'M','Comma':',','Period':'.','Slash':'/','Fn':'fn','ControlLeft':'ctrl','ControlRight':'ctrl','AltLeft':'opt','AltRight':'opt2','MetaLeft':'cmd','MetaRight':'cmd2','Space':' '};
 
 // ═══════════════════════════════════════════════════════════════
@@ -231,13 +293,13 @@ const STAGES=[
 ];
 function getStage(count,emojis,stageMins){
   if(count<=0)return{level:0,emoji:'',size:0};
-  const ss=stageMins&&stageMins.length===9?stageMins.map((min,i)=>({min,level:i+1,size:STAGES[i]?.size||12+i*2})):STAGES;
+  const ss=stageMins&&stageMins.length===9?stageMins.map((min,i)=>({...STAGES[i],min,size:STAGES[i].size||12+i*2})):STAGES;
   for(let i=ss.length-1;i>=0;i--)if(count>=ss[i].min){const s={...ss[i]};if(emojis&&emojis[i])s.emoji=emojis[i];return s}
   return{level:0,emoji:'',size:0};
 }
 function getStageProgress(count,stageMins){
   if(count<=0)return{level:0,pct:0};
-  const ss=stageMins&&stageMins.length===9?stageMins.map((min,i)=>({min,level:i+1,size:STAGES[i]?.size||12+i*2})):STAGES;
+  const ss=stageMins&&stageMins.length===9?stageMins.map((min,i)=>({...STAGES[i],min,size:STAGES[i].size||12+i*2})):STAGES;
   for(let i=ss.length-1;i>=0;i--){
     if(count>=ss[i].min){
       if(i===ss.length-1)return{level:ss[i].level,pct:1};
@@ -260,7 +322,32 @@ function getPeriod(daily,p){
 function containerW(s){return s.baseKeySize*15.5+s.keyGap*13}
 
 // ═══════════════════════════════════════════════════════════════
-// DYNAMIC CSS ─ 3D keys, themed, weather particles
+// FOCUS STATS HELPERS
+// ═══════════════════════════════════════════════════════════════
+function getFocusStats(sessions, period) {
+  const now = new Date();
+  let start;
+  if (period === 'today') {
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  } else if (period === 'week') {
+    const day = now.getDay() || 7;
+    start = new Date(now); start.setDate(now.getDate() - day + 1);
+    start.setHours(0,0,0,0);
+  } else if (period === 'month') {
+    start = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  const filtered = sessions.filter(s => {
+    const t = new Date(s.startTime);
+    return t >= start;
+  });
+  return {
+    sessions: filtered.length,
+    minutes: filtered.reduce((a, s) => a + (s.duration || 0), 0),
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DYNAMIC CSS
 // ═══════════════════════════════════════════════════════════════
 function resolveTheme(s){
   let t=s.keycapTheme==='custom'?KEYCAP_THEMES.custom:KEYCAP_THEMES[s.keycapTheme]||KEYCAP_THEMES.default;
@@ -331,7 +418,6 @@ function buildCSS(s){
   animation:kg-v2-bloom ${(0.4/sp).toFixed(2)}s ease-out;
 }
 .kg-count { position:absolute; bottom:1px; right:2px; font-size:6px; color:rgba(60,40,20,.85); font-weight:800; text-shadow:0 0 2px rgba(255,255,255,.8); z-index:3; }
-/* Feature 8 ─ progress bar */
 .kg-progress{position:absolute;bottom:0;left:0;height:2px;background:${t.hover};border-radius:0 0 4px 4px;transition:width .3s ease;z-index:1;opacity:.8;}
 
 /* ── Level colors ── */
@@ -377,20 +463,19 @@ function buildCSS(s){
 
 .kg-v2-container::-webkit-scrollbar { width:3px; }
 .kg-v2-container::-webkit-scrollbar-thumb { background:var(--background-modifier-border); border-radius:2px; }
-/* Feature 7 ─ popup */
+/* Right-click popup */
 .kg-v2-popup{background:var(--background-primary);border:1px solid var(--background-modifier-border);border-radius:6px;padding:6px 10px;box-shadow:0 4px 20px rgba(0,0,0,.2);font-size:11px;color:var(--text-normal);min-width:180px;max-width:260px;}
 .kg-v2-popup-title{font-size:12px;margin-bottom:3px;border-bottom:1px solid var(--background-modifier-border);padding-bottom:3px;}
 .kg-v2-popup table{width:100%;border-collapse:collapse;}
 .kg-v2-popup td{padding:2px 4px;}
 .kg-v2-popup td:first-child{color:var(--text-muted);font-size:10px;}
 .kg-v2-popup td:last-child{text-align:right;font-weight:600;}
-/* Feature 5 ─ dark mode adaptation */
+/* Dark mode */
 body.theme-dark .kg-key{box-shadow:inset 0 1px 0 rgba(255,255,255,.25),inset 0 -2px 0 rgba(0,0,0,.3),0 2px 3px rgba(0,0,0,.35)}
 body.theme-dark .kg-v2-popup{box-shadow:0 4px 20px rgba(0,0,0,.5)}
-/* Feature 6 ─ heatmap */
+/* Heatmap */
 .kg-v2-heat .kg-key[data-level="0"]{filter:grayscale(.4)}
-/* Heatmap inline colors applied by upKey() — no !important to allow JS override */
-/* Mini chart */
+/* Goals */
 .kg-v2-goal-met { color:#4CAF50; font-weight:600; }
 .kg-v2-wpm { color:#FF7043; }
 /* Mini mode */
@@ -401,6 +486,68 @@ body.theme-dark .kg-v2-popup{box-shadow:0 4px 20px rgba(0,0,0,.5)}
 .kg-v2-mini .kg-v2-mini-hint { font-size:10px; color:var(--text-muted); }
 /* Background */
 .kg-v2-bg { background:var(--kg-v2-bg,#222831); border-radius:8px; padding:10px; }
+
+/* ═══ POMODORO ═══ */
+.kg-pomo-wrap { width:100%; max-width:420px; margin-bottom:6px; }
+.kg-pomo-bar {
+  display:flex; align-items:center; gap:8px;
+  padding:6px 10px; border-radius:6px;
+  background:var(--background-modifier-border);
+  cursor:pointer; user-select:none;
+}
+.kg-pomo-bar:hover{ background:var(--background-modifier-active-hover); }
+.kg-pomo-icon { font-size:18px; flex-shrink:0; }
+.kg-pomo-timer { font-size:15px; font-weight:700; font-family:monospace; color:var(--text-normal); min-width:70px; }
+.kg-pomo-label { font-size:10px; color:var(--text-muted); flex:1; }
+.kg-pomo-count { font-size:9px; color:var(--text-muted); }
+.kg-pomo-btns { display:flex; gap:3px; }
+.kg-pomo-btn {
+  background:var(--background-primary); border:1px solid var(--background-modifier-border);
+  border-radius:4px; padding:2px 8px; font-size:9px; cursor:pointer; color:var(--text-normal);
+  transition:all .12s;
+}
+.kg-pomo-btn:hover{ background:var(--interactive-accent); color:var(--text-on-accent); }
+.kg-pomo-btn.kg-pomo-active{ background:var(--interactive-accent); color:var(--text-on-accent); }
+.kg-pomo-ctrl { position:relative; height:3px; border-radius:2px; background:var(--background-modifier-border); margin:0 10px; overflow:hidden; }
+.kg-pomo-ctrl-fill { height:100%; border-radius:2px; background:var(--interactive-accent); transition:width .9s linear; }
+.kg-pomo-running { animation:kg-pomo-pulse 2s ease-in-out infinite; }
+@keyframes kg-pomo-pulse {
+  0%,100%{box-shadow:0 0 0 0 rgba(76,175,80,.0)}
+  50%{box-shadow:0 0 8px 2px rgba(76,175,80,.35)}
+}
+.kg-pomo-break-mode{ background:rgba(76,175,80,.15); }
+.kg-pomo-longbreak-mode{ background:rgba(33,150,243,.15); }
+.kg-pomo-donemsg { font-size:11px; color:#4CAF50; font-weight:600; }
+
+/* Focus stats */
+.kg-focus-stats { display:flex; gap:12px; padding:3px 10px; flex-wrap:wrap; }
+.kg-focus-stat-item { font-size:9px; color:var(--text-muted); white-space:nowrap; }
+.kg-focus-stat-val { color:var(--text-normal); font-weight:600; }
+
+/* ═══ MUSIC PLAYER ═══ */
+.kg-music-wrap { width:100%; max-width:420px; }
+.kg-music-bar {
+  display:flex; align-items:center; gap:6px;
+  padding:5px 10px; border-radius:6px;
+  background:var(--background-modifier-border);
+}
+.kg-music-icon { font-size:14px; flex-shrink:0; }
+.kg-music-info { flex:1; min-width:0; overflow:hidden; }
+.kg-music-track { font-size:10px; color:var(--text-normal); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kg-music-ctrl { display:flex; gap:2px; }
+.kg-music-btn {
+  background:var(--background-primary); border:1px solid var(--background-modifier-border);
+  border-radius:4px; width:22px; height:22px; font-size:10px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--text-muted); transition:all .12s; padding:0;
+}
+.kg-music-btn:hover{ color:var(--text-normal); background:var(--background-modifier-hover); }
+.kg-music-vol { display:flex; align-items:center; gap:4px; }
+.kg-music-vol input[type=range]{ width:50px; height:3px; accent-color:var(--interactive-accent); }
+.kg-music-none { font-size:10px; color:var(--text-muted); padding:4px 10px; }
+
+/* Module visibility */
+.kg-module-hidden { display:none !important; }
 `;
 }
 
@@ -408,7 +555,7 @@ body.theme-dark .kg-v2-popup{box-shadow:0 4px 20px rgba(0,0,0,.5)}
 // VIEW
 // ═══════════════════════════════════════════════════════════════
 class KeyboardGardenV2View extends ItemView {
-  constructor(leaf,plugin){super(leaf);this.plugin=plugin;this._wt=null}
+  constructor(leaf,plugin){super(leaf);this.plugin=plugin;this._wt=null;this._po=null;this._music=null}
   getViewType(){return VIEW_TYPE}
   getDisplayText(){return'Keyboard Garden V2'}
   getIcon(){return'lucide-flower-2'}
@@ -416,26 +563,246 @@ class KeyboardGardenV2View extends ItemView {
   async onOpen(){
     const c=this.containerEl.children[1];c.empty();c.addClass('kg-v2-container');
     const s=this.plugin.settings;
-    // Mini mode
-    if(s.miniMode){
-      this._h=null;this._se=null;this._pe=null;this.kb=null;this._mi=c.createEl('div',{cls:'kg-v2-mini'});
-      this._mi.addEventListener('click',()=>{s.miniMode=false;this.plugin.saveSettings();this.rebuildView();});
-      this.renderMini();return;
+    this._music = null;
+    // Module: Pomodoro
+    if(s.enablePomodoro){
+      this.renderPomodoro(c);
     }
-    if(s.showTotalStats){
-      this._h=c.createEl('div',{cls:'kg-v2-header'});
-      this._h.createEl('h3',{text:`${(KEYCAP_THEMES[s.keycapTheme]||KEYCAP_THEMES.default).emoji} ${tr(s,'header')}`});
-      this._se=this._h.createEl('div',{cls:'kg-v2-stats'});
-      this._pe=this._h.createEl('div',{cls:'kg-v2-periods'});
-      this.renderStats();
-    }else{this._h=null;this._se=null;this._pe=null;}
-    this.kb=c.createEl('div',{cls:`kg-v2-keyboard${s.heatmapMode?' kg-v2-heat':''}${s.bgEnabled?' kg-v2-bg':''}`});
-    if(s.bgEnabled)this.kb.style.setProperty('--kg-v2-bg',s.bgColor||'#222831');
-    this.wl=this.kb.createEl('div',{cls:'kg-v2-weather'});
-    this.renderKb();this.resizeKb();
-    this._ro=new ResizeObserver(()=>this.resizeKb());this._ro.observe(c);
+    // Module: Garden header + keyboard
+    if(s.enableGarden){
+      if(s.showTotalStats){
+        this._h=c.createEl('div',{cls:'kg-v2-header'});
+        this._h.createEl('h3',{text:`${(KEYCAP_THEMES[s.keycapTheme]||KEYCAP_THEMES.default).emoji} ${tr(s,'header')}`});
+        this._se=this._h.createEl('div',{cls:'kg-v2-stats'});
+        this._pe=this._h.createEl('div',{cls:'kg-v2-periods'});
+        this.renderStats();
+      }else{this._h=null;this._se=null;this._pe=null;}
+      this.kb=c.createEl('div',{cls:`kg-v2-keyboard${s.heatmapMode?' kg-v2-heat':''}${s.bgEnabled?' kg-v2-bg':''}`});
+      if(s.bgEnabled)this.kb.style.setProperty('--kg-v2-bg',s.bgColor||'#222831');
+      this.wl=this.kb.createEl('div',{cls:'kg-v2-weather'});
+      this.renderKb();this.resizeKb();
+      this._ro=new ResizeObserver(()=>this.resizeKb());this._ro.observe(c);
+    }
+    // Module: Music player
+    if(s.enableMusic && s.musicShowMiniPlayer){
+      this.renderMusic(c);
+    }
   }
-  async onClose(){if(this._ro)this._ro.disconnect();if(this._wt){clearTimeout(this._wt);this._wt=null}}
+  async onClose(){
+    if(this._ro)this._ro.disconnect();
+    if(this._wt){clearTimeout(this._wt);this._wt=null}
+    if(this._po){clearInterval(this._po);this._po=null}
+    this.stopMusic();
+  }
+
+  // ── Pomodoro ──
+  renderPomodoro(parent){
+    const s=this.plugin.settings;
+    this._pw=parent.createEl('div',{cls:'kg-pomo-wrap'});
+    const bar=this._pw.createEl('div',{cls:'kg-pomo-bar'});
+    this._pi=bar.createEl('span',{cls:'kg-pomo-icon',text:'🍅'});
+    this._pt=bar.createEl('span',{cls:'kg-pomo-timer'});
+    this._pl=bar.createEl('span',{cls:'kg-pomo-label'});
+    this._pc=bar.createEl('span',{cls:'kg-pomo-count'});
+    const btns=bar.createEl('div',{cls:'kg-pomo-btns'});
+    this._ps=btns.createEl('button',{cls:'kg-pomo-btn',text:tr(s,'pomoStart')});
+    this._pst=btns.createEl('button',{cls:'kg-pomo-btn',text:tr(s,'pomoStop')});
+    this._pctrl=this._pw.createEl('div',{cls:'kg-pomo-ctrl'});
+    this._pfill=this._pctrl.createEl('div',{cls:'kg-pomo-ctrl-fill'});
+    // Focus stats
+    this._fs=this._pw.createEl('div',{cls:'kg-focus-stats'});
+    this.renderPomodoroState();
+    this.renderFocusStats();
+    this._ps.addEventListener('click',()=>this.pomoToggle());
+    this._pst.addEventListener('click',()=>this.pomoStop());
+  }
+  renderPomodoroState(){
+    const s=this.plugin.settings;
+    if(!this._pw)return;
+    const st=this.plugin._pomoState||'idle';
+    this._pw.classList.remove('kg-pomo-break-mode','kg-pomo-longbreak-mode');
+    if(st==='break')this._pw.classList.add('kg-pomo-break-mode');
+    if(st==='longbreak')this._pw.classList.add('kg-pomo-longbreak-mode');
+    const ttl=s.pomodoroDuration*60;
+    const brk=s.pomodoroBreakDuration*60;
+    const lbrk=s.pomodoroLongBreakDuration*60;
+    let secs,label,emoji;
+    if(st==='focusing'||st==='break'||st==='longbreak'){
+      secs=this.plugin._pomoLeft||ttl;
+      if(st==='break'){secs=this.plugin._pomoLeft||brk;emoji='☕';label=tr(s,'pomoBreak')}
+      else if(st==='longbreak'){secs=this.plugin._pomoLeft||lbrk;emoji='🌴';label=tr(s,'pomoLongBreak')}
+      else{emoji='🍅';label=tr(s,'pomoFocus')}
+    }else{
+      secs=ttl;emoji='🍅';label=tr(s,'pomoFocus');
+    }
+    const m=Math.floor(secs/60),ss=String(secs%60).padStart(2,'0');
+    if(this._pt)this._pt.textContent=`${m}:${ss}`;
+    if(this._pl)this._pl.textContent=label;
+    if(this._pi)this._pi.textContent=emoji;
+    if(this._pc)this._pc.textContent=`🍅 ${s.pomodoroCount||0}`;
+    const total=st==='break'?brk:st==='longbreak'?lbrk:ttl;
+    if(this._pfill)this._pfill.style.width=((total-secs)/total*100).toFixed(1)+'%';
+    this._pw.classList.toggle('kg-pomo-running',st==='focusing'||st==='break'||st==='longbreak');
+  }
+  renderFocusStats(){
+    const s=this.plugin.settings;
+    if(!this._fs)return;
+    this._fs.empty();
+    const periods=[{k:'today',l:tr(s,'focusStatsToday')},{k:'week',l:tr(s,'focusStatsWeek')},{k:'month',l:tr(s,'focusStatsMonth')}];
+    periods.forEach(p=>{
+      const fs=getFocusStats(s.pomodoroSessions||[],p.k);
+      const span=this._fs.createEl('span',{cls:'kg-focus-stat-item'});
+      span.innerHTML=`${p.l}: <span class="kg-focus-stat-val">${fs.sessions}次 ${fs.minutes}min</span>`;
+    });
+  }
+  pomoToggle(){
+    const st=this.plugin._pomoState||'idle';
+    if(st==='idle'||st==='paused'){
+      const s=this.plugin.settings;
+      const wasPaused=st==='paused';
+      this.plugin._pomoState=wasPaused?(this.plugin._pomoPauseType||'focusing'):'focusing';
+      this.plugin._pomoLeft=(wasPaused&&this.plugin._pomoLeft)?this.plugin._pomoLeft:(s.pomodoroDuration*60);
+      this._ps.textContent=tr(s,'pomoPause');
+      this.startPomoTick();
+    }else{
+      this.plugin._pomoPauseType=this.plugin._pomoState;
+      this.plugin._pomoState='paused';
+      if(this._po){clearInterval(this._po);this._po=null}
+      this._ps.textContent=tr(s,'pomoResume');
+    }
+  }
+  startPomoTick(){
+    if(this._po){clearInterval(this._po);this._po=null}
+    this._po=setInterval(()=>this.pomoTick(),1000);
+  }
+  pomoTick(){
+    const s=this.plugin.settings;
+    if(!this.plugin._pomoLeft)this.plugin._pomoLeft=s.pomodoroDuration*60;
+    this.plugin._pomoLeft--;
+    if(this.plugin._pomoLeft<=0){
+      clearInterval(this._po);this._po=null;
+      const prev=this.plugin._pomoState;
+      this.plugin._pomoState='idle';
+      this.plugin._pomoLeft=null;
+      this._ps.textContent=tr(s,'pomoStart');
+      // Alert sound
+      if(s.pomodoroSound)this.playPomoAlert();
+      // Record session if was focusing
+      if(prev==='focusing'){
+        s.pomodoroCount=(s.pomodoroCount||0)+1;
+        const now=new Date();
+        s.pomodoroSessions=s.pomodoroSessions||[];
+        s.pomodoroSessions.push({date:todayS(),startTime:new Date(now.getTime()-s.pomodoroDuration*60000).toISOString(),endTime:now.toISOString(),duration:s.pomodoroDuration});
+        if(s.pomodoroSessions.length>1000)s.pomodoroSessions=s.pomodoroSessions.slice(-1000);
+        this.plugin.saveSettings();
+        new Notice('🍅 '+tr(s,'pomoDone'));
+        if(s.pomodoroAutoStartBreak){
+          const isLongBreak=(s.pomodoroCount%4===0);
+          this.plugin._pomoState=isLongBreak?'longbreak':'break';
+          this.plugin._pomoLeft=isLongBreak?(s.pomodoroLongBreakDuration*60):(s.pomodoroBreakDuration*60);
+          this._ps.textContent=tr(s,'pomoPause');
+          this.startPomoTick();
+        }
+      }else{
+        // Break ended
+        if(s.pomodoroAutoStartFocus){
+          this.plugin._pomoState='focusing';
+          this.plugin._pomoLeft=s.pomodoroDuration*60;
+          this._ps.textContent=tr(s,'pomoPause');
+          this.startPomoTick();
+        }
+      }
+    }
+    this.renderPomodoroState();
+    this.renderFocusStats();
+  }
+  pomoStop(){
+    if(this._po){clearInterval(this._po);this._po=null}
+    this.plugin._pomoState='idle';
+    this.plugin._pomoLeft=null;
+    const s=this.plugin.settings;
+    this._ps.textContent=tr(s,'pomoStart');
+    this.renderPomodoroState();
+  }
+  playPomoAlert(){
+    try{
+      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      const freqs=[523,659,784];
+      freqs.forEach((f,i)=>{
+        const o=ctx.createOscillator();const g=ctx.createGain();
+        o.frequency.value=f;o.connect(g);g.connect(ctx.destination);
+        g.gain.setValueAtTime(.15,ctx.currentTime+i*.25);
+        g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+i*.25+.4);
+        o.start(ctx.currentTime+i*.25);o.stop(ctx.currentTime+i*.25+.5);
+      });
+    }catch(e){}
+  }
+
+  // ── Music ──
+  renderMusic(parent){
+    const s=this.plugin.settings;
+    this._mw=parent.createEl('div',{cls:'kg-music-wrap'});
+    if(!s.musicFolder){
+      this._mw.createEl('div',{cls:'kg-music-none',text:s.lang==='zh'?'🎵 未设置音乐文件夹（在设置中配置）':'🎵 No music folder set (configure in settings)'});
+      return;
+    }
+    const bar=this._mw.createEl('div',{cls:'kg-music-bar'});
+    this._mi=bar.createEl('span',{cls:'kg-music-icon',text:'🎵'});
+    this._mt=bar.createEl('div',{cls:'kg-music-info'});
+    this._mtrack=this._mt.createEl('div',{cls:'kg-music-track',text:s.lang==='zh'?'点击选择音乐':'Select a track'});
+    const ctrl=bar.createEl('div',{cls:'kg-music-ctrl'});
+    this._mp=ctrl.createEl('button',{cls:'kg-music-btn',text:'▶'});
+    this._mn=ctrl.createEl('button',{cls:'kg-music-btn',text:'⏭'});
+    this._mv=bar.createEl('div',{cls:'kg-music-vol'});
+    this._mvol=this._mv.createEl('input',{attr:{type:'range',min:'0',max:'100',value:String(s.musicVolume||80)}});
+    this._mvol.style.width='50px';
+    this._mvol.addEventListener('input',()=>{const v=this._mvol.value/100;if(this._audio)this._audio.volume=v;s.musicVolume=parseInt(this._mvol.value);this.plugin.saveSettings();});
+    this._mp.addEventListener('click',()=>this.musicToggle());
+    this._mn.addEventListener('click',()=>this.musicNext());
+    // Load folder
+    this.loadMusicFolder();
+  }
+  loadMusicFolder(){
+    const s=this.plugin.settings;
+    if(!s.musicFolder)return;
+    // File listing via Obsidian vault
+    const files=this.app.vault.getRoot().children.filter(f=>f.path.startsWith(s.musicFolder));
+    const audioExts=new Set(['.mp3','.wav','.ogg','.m4a','.flac','.aac']);
+    this._playlist=files.filter(f=>audioExts.has(f.name.slice(f.name.lastIndexOf('.'))));
+    if(this._playlist.length===0){
+      const m=this._mtrack;if(m)m.textContent=s.lang==='zh'?'文件夹无音频文件':'No audio files found';
+    }
+  }
+  musicToggle(){
+    if(!this._playlist||this._playlist.length===0){new Notice('🎵 无音频文件');return}
+    if(!this._audio)this._audio=new Audio();
+    if(this._audio.paused){
+      if(!this._curIdx&&this._curIdx!==0)this._curIdx=0;
+      const f=this._playlist[this._curIdx];
+      const path=this.app.vault.adapter.getResourcePath(f.path);
+      this._audio.src=path;
+      this._audio.volume=(this.plugin.settings.musicVolume||80)/100;
+      this._audio.play().then(()=>{
+        if(this._mtrack)this._mtrack.textContent=f.name;
+        if(this._mp)this._mp.textContent='⏸';
+      }).catch(e=>{new Notice('🎵 播放失败: '+e.message);});
+    }else{
+      this._audio.pause();
+      if(this._mp)this._mp.textContent='▶';
+    }
+  }
+  musicNext(){
+    if(!this._playlist||this._playlist.length===0)return;
+    if(!this._curIdx&&this._curIdx!==0)this._curIdx=0;
+    this._curIdx=(this._curIdx+1)%this._playlist.length;
+    if(this._audio)this._audio.src='';
+    this.musicToggle();
+  }
+  stopMusic(){
+    if(this._audio){this._audio.pause();this._audio.src=''}
+  }
+
+  // ── Garden ──
   resizeKb(){
     if(!this.kb)return;const p=this.kb.parentElement;if(!p)return;
     const kw=containerW(this.plugin.settings);
@@ -469,7 +836,6 @@ class KeyboardGardenV2View extends ItemView {
         if(s.showLabels)ke.createEl('span',{cls:'kg-label',text:LABELS[key]||key.toUpperCase()});
         ke.createEl('div',{cls:'kg-flower-wrap'});
         this.upKey(ke,toEv(key),this.plugin.getKeyCount(toEv(key)),s,0);
-        // Feature 7 ─ right-click details
         ke.addEventListener('contextmenu',ev=>{ev.preventDefault();ev.stopPropagation();this.showKeyPopup(ke,toEv(key),ev);});
       });
     });
@@ -478,70 +844,46 @@ class KeyboardGardenV2View extends ItemView {
     const w=el.querySelector('.kg-flower-wrap');if(!w)return;w.empty();
     const stage=getStage(count,getThemeEmojis(s),s.customStageMins);
     el.setAttribute('data-level',String(stage.level));
-    if(s.heatmapMode&&count>0){const r=Math.min(1,count/(maxCount||1));let cr,cg,cb;if(r<.111){const t=r*9;cr=255;cg=255;cb=Math.round(240-t*40)}else if(r<.222){const t=(r-.111)/.111;cr=255;cg=255;cb=Math.round(200-t*50)}else if(r<.333){const t=(r-.222)/.111;cr=255;cg=Math.round(255-t*15);cb=0}else if(r<.444){const t=(r-.333)/.111;cr=255;cg=Math.round(240-t*40);cb=0}else if(r<.555){const t=(r-.444)/.111;cr=255;cg=Math.round(200-t*40);cb=0}else if(r<.666){const t=(r-.555)/.111;cr=255;cg=Math.round(160-t*40);cb=0}else if(r<.777){const t=(r-.666)/.111;cr=255;cg=Math.round(120-t*60);cb=0}else if(r<.888){const t=(r-.777)/.111;cr=255;cg=Math.round(60-t*60);cb=0}else{const t=(r-.888)/.112;cr=Math.round(255-t*75);cg=0;cb=0}el.style.background=`linear-gradient(180deg,rgb(${cr},${cg},${cb}) 0%,rgb(${cr},${cg},${cb}) 28%,rgb(${Math.round(cr*.72)},${Math.round(cg*.72)},${Math.round(cb*.72)}) 100%)`;el.style.borderColor=`rgb(${Math.round(cr*.55)},${Math.round(cg*.55)},${Math.round(cb*.55)})`}
+    if(s.heatmapMode&&count>0){const r=Math.min(1,count/(maxCount||1));let cr,cg,cb;if(r<.111){cr=255;cg=255;cb=Math.round(240-r*9*40)}else if(r<.222){const t=(r-.111)/.111;cr=255;cg=255;cb=Math.round(200-t*50)}else if(r<.333){const t=(r-.222)/.111;cr=255;cg=Math.round(255-t*15);cb=0}else if(r<.444){const t=(r-.333)/.111;cr=255;cg=Math.round(240-t*40);cb=0}else if(r<.555){const t=(r-.444)/.111;cr=255;cg=Math.round(200-t*40);cb=0}else if(r<.666){const t=(r-.555)/.111;cr=255;cg=Math.round(160-t*40);cb=0}else if(r<.777){const t=(r-.666)/.111;cr=255;cg=Math.round(120-t*60);cb=0}else if(r<.888){const t=(r-.777)/.111;cr=255;cg=Math.round(60-t*60);cb=0}else{const t=(r-.888)/.112;cr=Math.round(255-t*75);cg=0;cb=0}el.style.background=`linear-gradient(180deg,rgb(${cr},${cg},${cb}) 0%,rgb(${cr},${cg},${cb}) 28%,rgb(${Math.round(cr*.72)},${Math.round(cg*.72)},${Math.round(cb*.72)}) 100%)`;el.style.borderColor=`rgb(${Math.round(cr*.55)},${Math.round(cg*.55)},${Math.round(cb*.55)})`}
     else{el.style.background='';el.style.borderColor='';}
     if(count>0&&stage.emoji){w.createEl('span',{cls:'kg-flower',text:stage.emoji}).style.fontSize=stage.size+'px';if(s.showCounts)w.createEl('span',{cls:'kg-count',text:String(count)})}
-    // Progress bar (Feature 8)
-    let pb=el.querySelector('.kg-progress');
-    if(!pb){pb=el.createEl('div',{cls:'kg-progress'});}
+    let pb=el.querySelector('.kg-progress');if(!pb){pb=el.createEl('div',{cls:'kg-progress'})}
     const p=getStageProgress(count,s.customStageMins);
-    if(p.level>=9){pb.style.width='0px';pb.style.opacity='0';}
-    else{pb.style.width=(p.pct*100).toFixed(1)+'%';pb.style.opacity='1';}
+    if(p.level>=9){pb.style.width='0px';pb.style.opacity='0'}else{pb.style.width=(p.pct*100).toFixed(1)+'%';pb.style.opacity='1'}
   }
   renderStats(){
     if(!this._se||!this._pe)return;
     const s=this.plugin.settings,daily=s.dailyCounts||{};
     const ps=[{k:'today'},{k:'week'},{k:'month'},{k:'year'}];
     this._se.empty();
-    // WPM
-    if(s.showWPM!==false){
-      const wpm=this.plugin.getWPM();
-      this._se.createEl('span',{cls:'kg-v2-stat-item kg-v2-wpm',text:`⚡ ${wpm} WPM`});
-    }
-    ps.forEach(p=>{
-      const v=getPeriod(daily,p.k);
-      this._se.createEl('span',{cls:'kg-v2-stat-item',text:`${tr(s,'stats.'+p.k)}: ${v.toLocaleString()}`});
-    });
-    // Goals
+    if(s.showWPM!==false){const wpm=this.plugin.getWPM();this._se.createEl('span',{cls:'kg-v2-stat-item kg-v2-wpm',text:`⚡ ${wpm} WPM`})}
+    ps.forEach(p=>{const v=getPeriod(daily,p.k);this._se.createEl('span',{cls:'kg-v2-stat-item',text:`${tr(s,'stats.'+p.k)}: ${v.toLocaleString()}`})});
     const dg=s.dailyGoal||0,wg=s.weeklyGoal||0;
-    if(dg>0){const td=getPeriod(daily,'today'),dp=Math.min(1,td/dg);this._se.createEl('span',{cls:`kg-v2-stat-item${dp>=1?' kg-v2-goal-met':''}`,text:`${dp>=1?'🎯':'🎯'} ${Math.round(dp*100)}%`});}
-    if(wg>0){const wk=getPeriod(daily,'week'),wp=Math.min(1,wk/wg);this._se.createEl('span',{cls:`kg-v2-stat-item${wp>=1?' kg-v2-goal-met':''}`,text:`${wp>=1?'✅':'📅'} ${Math.round(wp*100)}%`});}
+    if(dg>0){const td=getPeriod(daily,'today'),dp=Math.min(1,td/dg);this._se.createEl('span',{cls:`kg-v2-stat-item${dp>=1?' kg-v2-goal-met':''}`,text:`${dp>=1?'🎯':'🎯'} ${Math.round(dp*100)}%`})}
+    if(wg>0){const wk=getPeriod(daily,'week'),wp=Math.min(1,wk/wg);this._se.createEl('span',{cls:`kg-v2-stat-item${wp>=1?' kg-v2-goal-met':''}`,text:`${wp>=1?'✅':'📅'} ${Math.round(wp*100)}%`})}
     this._pe.empty();
-    ps.forEach(p=>{
-      const b=this._pe.createEl('button',{cls:'kg-v2-period-btn',text:tr(s,'stats.'+p.k)});
-      if(p.k===s.statsPeriod)b.addClass('kg-v2-active');
-      b.addEventListener('click',()=>{s.statsPeriod=p.k;this.plugin.saveSettings();this.plugin.updateAllViews();});
-    });
+    ps.forEach(p=>{const b=this._pe.createEl('button',{cls:'kg-v2-period-btn',text:tr(s,'stats.'+p.k)});if(p.k===s.statsPeriod)b.addClass('kg-v2-active');b.addEventListener('click',()=>{s.statsPeriod=p.k;this.plugin.saveSettings();this.plugin.updateAllViews();})});
   }
   showWeather(type){
     const cfg=WEATHER[type];if(!cfg||!this.wl)return;this.wl.empty();this.kb.addClass('kg-v2-weather-active');
     const isC=type==='cloud';
     for(let i=0;i<cfg.n;i++){
-      if(isC){
-        const p=this.wl.createEl('span',{cls:'kg-v2-particle-c'});p.textContent=cfg.e;
-        p.style.top=(Math.random()*35+10)+'%';p.style.setProperty('--d',(Math.random()*6+10)+'s');p.style.setProperty('--delay',(Math.random()*4)+'s');
-      }else{
-        const p=this.wl.createEl('span',{cls:'kg-v2-particle'});p.textContent=cfg.e;
-        p.style.left=(Math.random()*95+2)+'%';p.style.setProperty('--d',(Math.random()*3+(cfg.s==='fastest'?1.5:cfg.s==='fast'?2.5:4))+'s');p.style.setProperty('--delay',(Math.random()*3)+'s');p.style.fontSize=(Math.random()*10+10)+'px';
-      }
+      if(isC){const p=this.wl.createEl('span',{cls:'kg-v2-particle-c'});p.textContent=cfg.e;p.style.top=(Math.random()*35+10)+'%';p.style.setProperty('--d',(Math.random()*6+10)+'s');p.style.setProperty('--delay',(Math.random()*4)+'s')}
+      else{const p=this.wl.createEl('span',{cls:'kg-v2-particle'});p.textContent=cfg.e;p.style.left=(Math.random()*95+2)+'%';p.style.setProperty('--d',(Math.random()*3+(cfg.s==='fastest'?1.5:cfg.s==='fast'?2.5:4))+'s');p.style.setProperty('--delay',(Math.random()*3)+'s');p.style.fontSize=(Math.random()*10+10)+'px'}
     }
     if(this._wt)clearTimeout(this._wt);this._wt=setTimeout(()=>this.clearWeather(),cfg.d*1000);
   }
   clearWeather(){if(this.wl)this.wl.empty();if(this.kb)this.kb.removeClass('kg-v2-weather-active')}
-  // Feature 7 ─ right-click key details popup
   showKeyPopup(el,key,ev){
     const s=this.plugin.settings,count=this.plugin.getKeyCount(key);
     const sp=getStageProgress(count,s.customStageMins),emoji=getStage(count,getThemeEmojis(s),s.customStageMins).emoji||'⬚';
     const p=document.getElementById('kg-v2-popup');if(p)p.remove();
     const pop=document.body.createEl('div',{cls:'kg-v2-popup',attr:{id:'kg-v2-popup'}});
-    const label=LABELS[key]||key;const resStages=s.customStageMins&&s.customStageMins.length===9?STAGES.map((st2,i)=>({...st2,min:s.customStageMins[i]||st2.min})):STAGES;const nextThr=sp.level<9&&sp.level>0?resStages.find(st2=>st2.level===sp.level+1):null;
-    const today=getPeriod(s.dailyCounts||{},'today'),daily=s.dailyCounts?((s.dailyCounts[todayS()]||0)):0;
-    pop.innerHTML=`<div class="kg-v2-popup-inner">
-      <div class="kg-v2-popup-title">${emoji} <b>${label}</b> (${key})</div>
-      <table><tr><td>Total hits</td><td><b>${count.toLocaleString()}</b></td></tr>
-      <tr><td>Level</td><td>${sp.level}/9</td></tr>
-      <tr><td>Progress</td><td>${(sp.pct*100).toFixed(0)}% ${nextThr?'→ next at '+(nextThr.min-count).toLocaleString():'MAX'}</td></tr>
-      <tr><td>Today</td><td>${today.toLocaleString()}</td></tr></table></div>`;
+    const label=LABELS[key]||key;
+    const resStages=s.customStageMins&&s.customStageMins.length===9?STAGES.map((st2,i)=>({...st2,min:s.customStageMins[i]||st2.min})):STAGES;
+    const nextThr=sp.level<9&&sp.level>0?resStages.find(st2=>st2.level===sp.level+1):null;
+    const today=getPeriod(s.dailyCounts||{},'today');
+    pop.innerHTML=`<div class="kg-v2-popup-title">${emoji} <b>${label}</b> (${key})</div><table><tr><td>Total hits</td><td><b>${count.toLocaleString()}</b></td></tr><tr><td>Level</td><td>${sp.level}/9</td></tr><tr><td>Progress</td><td>${(sp.pct*100).toFixed(0)}% ${nextThr?'→ next at '+(nextThr.min-count).toLocaleString():'MAX'}</td></tr><tr><td>Today</td><td>${today.toLocaleString()}</td></tr></table>`;
     Object.assign(pop.style,{position:'fixed',zIndex:'99999',top:(ev.clientY+8)+'px',left:(ev.clientX+8)+'px'});
     const h=()=>{const pp=document.getElementById('kg-v2-popup');if(pp)pp.remove();document.removeEventListener('click',h);document.removeEventListener('contextmenu',h);};
     setTimeout(()=>{document.addEventListener('click',h);document.addEventListener('contextmenu',h);},50);
@@ -549,7 +891,7 @@ class KeyboardGardenV2View extends ItemView {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SETTINGS TAB ─ single language, custom color pickers
+// SETTINGS TAB
 // ═══════════════════════════════════════════════════════════════
 class KeyboardGardenV2SettingTab extends PluginSettingTab {
   constructor(app,plugin){super(app,plugin);this.plugin=plugin}
@@ -559,67 +901,112 @@ class KeyboardGardenV2SettingTab extends PluginSettingTab {
 
     c.createEl('h2',{text:`${(KEYCAP_THEMES[s.keycapTheme]||KEYCAP_THEMES.default).emoji} ${t('settings.title')}`});
 
+    // Module toggles
+    c.createEl('h3',{text:`⚡ ${t('settings.moduleToggle')}`});
+    c.createEl('p',{text:t('settings.moduleToggleDesc'),cls:'setting-item-description'});
+    new Setting(c).setName(t('settings.enableGarden')).setDesc(t('settings.enableGardenDesc'))
+      .addToggle(tx=>tx.setValue(s.enableGarden!==false).onChange(async v=>{s.enableGarden=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();}));
+    new Setting(c).setName(t('settings.enablePomodoro')).setDesc(t('settings.enablePomodoroDesc'))
+      .addToggle(tx=>tx.setValue(s.enablePomodoro!==false).onChange(async v=>{s.enablePomodoro=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();}));
+    new Setting(c).setName(t('settings.enableMusic')).setDesc(t('settings.enableMusicDesc'))
+      .addToggle(tx=>tx.setValue(s.enableMusic||false).onChange(async v=>{s.enableMusic=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();}));
+
+    // Pomodoro settings
+    c.createEl('h3',{text:`🍅 ${t('settings.pomodoroSection')}`});
+    c.createEl('p',{text:t('settings.pomodoroSectionDesc'),cls:'setting-item-description'});
+    new Setting(c).setName(t('settings.pomodoroDuration')).setDesc(t('settings.pomodoroDurationDesc'))
+      .addText(tx=>{tx.inputEl.type='number';tx.inputEl.min='1';tx.inputEl.max='120';tx.setValue(String(s.pomodoroDuration||25));tx.onChange(async v=>{s.pomodoroDuration=parseInt(v)||25;await this.plugin.saveSettings();})});
+    new Setting(c).setName(t('settings.pomodoroBreakDuration')).setDesc(t('settings.pomodoroBreakDurationDesc'))
+      .addText(tx=>{tx.inputEl.type='number';tx.inputEl.min='1';tx.inputEl.max='60';tx.setValue(String(s.pomodoroBreakDuration||5));tx.onChange(async v=>{s.pomodoroBreakDuration=parseInt(v)||5;await this.plugin.saveSettings();})});
+    new Setting(c).setName(t('settings.pomodoroLongBreakDuration')).setDesc(t('settings.pomodoroLongBreakDurationDesc'))
+      .addText(tx=>{tx.inputEl.type='number';tx.inputEl.min='1';tx.inputEl.max='60';tx.setValue(String(s.pomodoroLongBreakDuration||15));tx.onChange(async v=>{s.pomodoroLongBreakDuration=parseInt(v)||15;await this.plugin.saveSettings();})});
+    new Setting(c).setName(t('settings.pomodoroSound')).setDesc(t('settings.pomodoroSoundDesc'))
+      .addToggle(tx=>tx.setValue(s.pomodoroSound!==false).onChange(async v=>{s.pomodoroSound=v;await this.plugin.saveSettings();}));
+    new Setting(c).setName(t('settings.pomodoroAutoStartBreak')).setDesc(t('settings.pomodoroAutoStartBreakDesc'))
+      .addToggle(tx=>tx.setValue(s.pomodoroAutoStartBreak||false).onChange(async v=>{s.pomodoroAutoStartBreak=v;await this.plugin.saveSettings();}));
+    new Setting(c).setName(t('settings.pomodoroAutoStartFocus')).setDesc(t('settings.pomodoroAutoStartFocusDesc'))
+      .addToggle(tx=>tx.setValue(s.pomodoroAutoStartFocus||false).onChange(async v=>{s.pomodoroAutoStartFocus=v;await this.plugin.saveSettings();}));
+    new Setting(c).setName(t('settings.pomodoroResetToday')).setDesc(t('settings.pomodoroResetTodayDesc'))
+      .addButton(b=>b.setButtonText(s.lang==='zh'?'🔄 重置今日':'🔄 Reset Today').setWarning().onClick(async()=>{
+        s.pomodoroCount=0;
+        const today=todayS();
+        if(s.pomodoroSessions)s.pomodoroSessions=s.pomodoroSessions.filter(s=>s.date!==today);
+        await this.plugin.saveSettings();
+        new Notice(s.lang==='zh'?'🍅 今日记录已重置':'🍅 Today\'s records reset');
+      }));
+
+    // Music settings
+    c.createEl('h3',{text:`🎵 ${t('settings.musicSection')}`});
+    c.createEl('p',{text:t('settings.musicSectionDesc'),cls:'setting-item-description'});
+    const folderDesc=s.musicFolder?(s.lang==='zh'?'当前: '+s.musicFolder:'Current: '+s.musicFolder):(s.lang==='zh'?'未设置':'Not set');
+    new Setting(c).setName(t('settings.musicFolder')).setDesc(folderDesc)
+      .addButton(b=>b.setButtonText(t('settings.musicFolderSelect')).onClick(async()=>{
+        const el=document.createElement('input');el.type='file';el.webkitdirectory=true;
+        el.onchange=async()=>{const p=el.files[0]?.webkitkitRelativePath;if(p){s.musicFolder=p.replace(/\/[^/]*$/,'/');await this.plugin.saveSettings();this.display();new Notice('🎵 '+tr(s,'musicFolder')+': '+s.musicFolder)}};
+        el.click();
+      }))
+      .addButton(b=>b.setButtonText(t('settings.musicFolderReset')).onClick(async()=>{s.musicFolder='';await this.plugin.saveSettings();this.display();}));
+    new Setting(c).setName(t('settings.musicVolume')).setDesc(t('settings.musicVolumeDesc'))
+      .addText(tx=>{tx.inputEl.type='range';tx.inputEl.min='0';tx.inputEl.max='100';tx.inputEl.style.width='120px';tx.setValue(String(s.musicVolume||80));tx.onChange(async v=>{s.musicVolume=Math.max(0,Math.min(100,parseInt(v)||80));await this.plugin.saveSettings();})});
+    new Setting(c).setName(t('settings.musicShuffle')).setDesc(t('settings.musicShuffleDesc'))
+      .addToggle(tx=>tx.setValue(s.musicShuffle||false).onChange(async v=>{s.musicShuffle=v;await this.plugin.saveSettings();}));
+    new Setting(c).setName(t('settings.musicAutoPlay')).setDesc(t('settings.musicAutoPlayDesc'))
+      .addToggle(tx=>tx.setValue(s.musicAutoPlay||false).onChange(async v=>{s.musicAutoPlay=v;await this.plugin.saveSettings();}));
+    new Setting(c).setName(t('settings.musicShowMiniPlayer')).setDesc(t('settings.musicShowMiniPlayerDesc'))
+      .addToggle(tx=>tx.setValue(s.musicShowMiniPlayer!==false).onChange(async v=>{s.musicShowMiniPlayer=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();}));
+
     // Language
     new Setting(c).setName(t('settings.lang')).setDesc(t('settings.langDesc'))
-      .addDropdown(d=>d.addOption('zh','中文').addOption('en','English').setValue(s.lang).onChange(async v=>{s.lang=v;await this.plugin.saveSettings();this.display();}));
-
-    // ── Main ──
-    c.createEl('h3',{text:`⭐ ${t('settings.main')}`});
+      .addDropdown(d=>d.addOption('zh','中文').addOption('en','English').setValue(s.lang).onChange(async v=>{s.lang=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();this.display();}));
 
     // ── Keycap Theme ──
+    c.createEl('h3',{text:`⭐ ${t('settings.main')}`});
     new Setting(c).setName(t('settings.keycapTheme')).setDesc(t('settings.keycapThemeDesc'))
-      .addDropdown(d=>{Object.entries(KEYCAP_THEMES).forEach(([id,th])=>d.addOption(id,th.name[s.lang]||th.name.en));return d.setValue(s.keycapTheme).onChange(async v=>{s.keycapTheme=v;s.heatmapMode=v==='heatmap';await this.plugin.saveSettings();this.plugin.rebuildAllViews();if(v==='custom')this.display();});});
-
-    // Custom theme color pickers — only when 'custom'
+      .addDropdown(d=>{Object.entries(KEYCAP_THEMES).forEach(([id,th])=>d.addOption(id,th.name[s.lang]||th.name.en));return d.setValue(s.keycapTheme).onChange(async v=>{s.keycapTheme=v;s.heatmapMode=v==='heatmap';await this.plugin.saveSettings();this.plugin.rebuildAllViews();if(v==='custom')this.display();})});
     if(s.keycapTheme==='custom'){
       const ct=s.customTheme||{};
       c.createEl('h4',{text:`🎨 ${t('settings.customTheme')}`});
       c.createEl('p',{text:t('settings.customThemeDesc'),cls:'setting-item-description'});
-      new Setting(c).setName(t('settings.customTop')).addText(tx=>{tx.inputEl.type='color';tx.setValue(ct.top||'#F5F5F5');tx.onChange(async v=>{ct.top=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();});});
-      new Setting(c).setName(t('settings.customBottom')).addText(tx=>{tx.inputEl.type='color';tx.setValue(ct.bottom||'#D4D4D4');tx.onChange(async v=>{ct.bottom=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();});});
-      new Setting(c).setName(t('settings.customBorder')).addText(tx=>{tx.inputEl.type='color';tx.setValue(ct.border||'#BDBDBD');tx.onChange(async v=>{ct.border=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();});});
-      new Setting(c).setName(t('settings.customBorderHover')).addText(tx=>{tx.inputEl.type='color';tx.setValue(ct.hover||'#9E9E9E');tx.onChange(async v=>{ct.hover=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();});});
-      new Setting(c).setName(t('settings.customLabel')).addText(tx=>{tx.inputEl.type='color';tx.setValue(ct.label||'#333333');tx.onChange(async v=>{ct.label=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();});});
+      new Setting(c).setName(t('settings.customTop')).addText(tx=>{tx.inputEl.type='color';tx.setValue(ct.top||'#F5F5F5');tx.onChange(async v=>{ct.top=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();})});
+      new Setting(c).setName(t('settings.customBottom')).addText(tx=>{tx.inputEl.type='color';tx.setValue(ct.bottom||'#D4D4D4');tx.onChange(async v=>{ct.bottom=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();})});
+      new Setting(c).setName(t('settings.customBorder')).addText(tx=>{tx.inputEl.type='color';tx.setValue(ct.border||'#BDBDBD');tx.onChange(async v=>{ct.border=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();})});
+      new Setting(c).setName(t('settings.customBorderHover')).addText(tx=>{tx.inputEl.type='color';tx.setValue(ct.hover||'#9E9E9E');tx.onChange(async v=>{ct.hover=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();})});
+      new Setting(c).setName(t('settings.customLabel')).addText(tx=>{tx.inputEl.type='color';tx.setValue(ct.label||'#333333');tx.onChange(async v=>{ct.label=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();})});
     }
-
     new Setting(c).setName(t('settings.baseKeySize')).setDesc(t('settings.baseKeySizeDesc'))
       .addDropdown(d=>d.addOption('16',t('settings.pxSmall')).addOption('18',t('settings.px18')).addOption('20',t('settings.pxDefault')).addOption('22',t('settings.px22')).addOption('24',t('settings.pxLarge')).setValue(String(s.baseKeySize)).onChange(async v=>{s.baseKeySize=parseInt(v);await this.plugin.saveSettings();this.plugin.rebuildAllViews();}));
-
     new Setting(c).setName(t('settings.showLabels')).setDesc(t('settings.showLabelsDesc'))
       .addToggle(tx=>tx.setValue(s.showLabels).onChange(async v=>{s.showLabels=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();}));
     new Setting(c).setName(t('settings.showCounts')).setDesc(t('settings.showCountsDesc'))
       .addToggle(tx=>tx.setValue(s.showCounts).onChange(async v=>{s.showCounts=v;await this.plugin.saveSettings();this.plugin.updateAllViews();}));
     new Setting(c).setName(t('settings.flowerTheme')).setDesc(t('settings.flowerThemeDesc'))
       .addDropdown(d=>d.addOption('garden',t('settings.themeGarden')).addOption('forest',t('settings.themeForest')).addOption('fruit',t('settings.themeFruit')).addOption('custom',t('settings.themeCustom')||'🎨 Custom').setValue(s.flowerTheme).onChange(async v=>{s.flowerTheme=v;await this.plugin.saveSettings();this.plugin.updateAllViews();this.display();}));
-    // Custom flowers + stage thresholds — only for custom flower theme
     if(s.flowerTheme==='custom'){
-    c.createEl('h4',{text:`🌸 ${t('settings.customFlower')}`});
-    c.createEl('p',{text:t('settings.customFlowerDesc'),cls:'setting-item-description'});
-    const emojis=getThemeEmojis(s),mins=s.customStageMins||DEFAULT_SETTINGS.customStageMins;
-    for(let i=0;i<9;i++){
-      const st=STAGES[i];
-      new Setting(c)
-        .setName(`${t('settings.flowerStage').replace('{s}',String(i+1))} (≥${mins[i]||st.min})`)
-        .setDesc(t('settings.customStageMinDesc'))
-        .addText(tx=>{tx.inputEl.type='number';tx.inputEl.min='1';tx.inputEl.style.width='70px';tx.setValue(String(mins[i]||st.min));tx.onChange(async v=>{if(!s.customStageMins||s.customStageMins.length!==9)s.customStageMins=[...DEFAULT_SETTINGS.customStageMins];s.customStageMins[i]=parseInt(v)||st.min;await this.plugin.saveSettings();this.plugin.updateAllViews();})})
-        .addText(tx=>{tx.inputEl.placeholder=emojis[i]||'';tx.setValue(s.customEmojis[i]||'');tx.onChange(async v=>{s.customEmojis[i]=v||'';await this.plugin.saveSettings();this.plugin.updateAllViews();})});
+      c.createEl('h4',{text:`🌸 ${t('settings.customFlower')}`});
+      c.createEl('p',{text:t('settings.customFlowerDesc'),cls:'setting-item-description'});
+      const emojis=getThemeEmojis(s),mins=s.customStageMins||DEFAULT_SETTINGS.customStageMins;
+      for(let i=0;i<9;i++){
+        const st=STAGES[i];
+        new Setting(c)
+          .setName(`${t('settings.flowerStage').replace('{s}',String(i+1))} (≥${mins[i]||st.min})`)
+          .setDesc(t('settings.customStageMinDesc'))
+          .addText(tx=>{tx.inputEl.type='number';tx.inputEl.min='1';tx.inputEl.style.width='70px';tx.setValue(String(mins[i]||st.min));tx.onChange(async v=>{if(!s.customStageMins||s.customStageMins.length!==9)s.customStageMins=[...DEFAULT_SETTINGS.customStageMins];s.customStageMins[i]=parseInt(v)||st.min;await this.plugin.saveSettings();this.plugin.updateAllViews();})})
+          .addText(tx=>{tx.inputEl.placeholder=emojis[i]||'';tx.setValue(s.customEmojis[i]||'');tx.onChange(async v=>{s.customEmojis[i]=v||'';await this.plugin.saveSettings();this.plugin.updateAllViews();})});
+      }
     }
-
-    }
-    // ── Weather ──
+    // Weather
     c.createEl('h3',{text:`🌤️ ${t('settings.weather')}`});
     new Setting(c).setName(t('settings.weatherEnabled')).setDesc(t('settings.weatherEnabledDesc'))
       .addToggle(tx=>tx.setValue(s.weatherEnabled).onChange(async v=>{s.weatherEnabled=v;await this.plugin.saveSettings();}));
     c.createEl('h4',{text:t('settings.weatherThreshold')});
     c.createEl('p',{text:t('settings.weatherThresholdDesc'),cls:'setting-item-description'});
     const th=s.weatherThresholds||{cloud:3000,rain:6000,snow:10000,hail:15000};
-    new Setting(c).setName(t('settings.weatherThresholdCloud')).addText(tx=>{tx.inputEl.type='number';tx.inputEl.min='0';tx.setValue(String(th.cloud||3000));tx.onChange(async v=>{th.cloud=parseInt(v)||0;await this.plugin.saveSettings();});});
-    new Setting(c).setName(t('settings.weatherThresholdRain')).addText(tx=>{tx.inputEl.type='number';tx.inputEl.min='0';tx.setValue(String(th.rain||6000));tx.onChange(async v=>{th.rain=parseInt(v)||0;await this.plugin.saveSettings();});});
-    new Setting(c).setName(t('settings.weatherThresholdSnow')).addText(tx=>{tx.inputEl.type='number';tx.inputEl.min='0';tx.setValue(String(th.snow||10000));tx.onChange(async v=>{th.snow=parseInt(v)||0;await this.plugin.saveSettings();});});
-    new Setting(c).setName(t('settings.weatherThresholdHail')).addText(tx=>{tx.inputEl.type='number';tx.inputEl.min='0';tx.setValue(String(th.hail||15000));tx.onChange(async v=>{th.hail=parseInt(v)||0;await this.plugin.saveSettings();});});
+    new Setting(c).setName(t('settings.weatherThresholdCloud')).addText(tx=>{tx.inputEl.type='number';tx.inputEl.min='0';tx.setValue(String(th.cloud||3000));tx.onChange(async v=>{th.cloud=parseInt(v)||0;await this.plugin.saveSettings();})});
+    new Setting(c).setName(t('settings.weatherThresholdRain')).addText(tx=>{tx.inputEl.type='number';tx.inputEl.min='0';tx.setValue(String(th.rain||6000));tx.onChange(async v=>{th.rain=parseInt(v)||0;await this.plugin.saveSettings();})});
+    new Setting(c).setName(t('settings.weatherThresholdSnow')).addText(tx=>{tx.inputEl.type='number';tx.inputEl.min='0';tx.setValue(String(th.snow||10000));tx.onChange(async v=>{th.snow=parseInt(v)||0;await this.plugin.saveSettings();})});
+    new Setting(c).setName(t('settings.weatherThresholdHail')).addText(tx=>{tx.inputEl.type='number';tx.inputEl.min='0';tx.setValue(String(th.hail||15000));tx.onChange(async v=>{th.hail=parseInt(v)||0;await this.plugin.saveSettings();})});
     new Setting(c).setDesc(t('settings.weatherInfo')).setClass('kg-setting-info');
-
-    // ── Display ──
+    // Display
     c.createEl('h3',{text:`🎛️ ${t('settings.display')}`});
     new Setting(c).setName(t('settings.animationSpeed')).setDesc(t('settings.animationSpeedDesc'))
       .addDropdown(d=>d.addOption('0.5',t('settings.speedSlow')).addOption('0.75',t('settings.speed75')).addOption('1',t('settings.speedNormal')).addOption('1.5',t('settings.speed15')).addOption('2',t('settings.speedFast')).setValue(String(s.animationSpeed)).onChange(async v=>{s.animationSpeed=parseFloat(v);await this.plugin.saveSettings();this.plugin.rebuildAllViews();}));
@@ -633,32 +1020,27 @@ class KeyboardGardenV2SettingTab extends PluginSettingTab {
       .addToggle(tx=>tx.setValue(s.autoDark!==false).onChange(async v=>{s.autoDark=v;await this.plugin.saveSettings()}));
     new Setting(c).setName(t('settings.miniMode')).setDesc(t('settings.miniModeDesc'))
       .addToggle(tx=>tx.setValue(s.miniMode||false).onChange(async v=>{s.miniMode=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();}));
-    // Goals
     new Setting(c).setName(t('settings.dailyGoal')).setDesc(t('settings.dailyGoalDesc'))
       .addText(tx=>{tx.inputEl.type='number';tx.inputEl.min='0';tx.setValue(String(s.dailyGoal||1000));tx.onChange(async v=>{s.dailyGoal=parseInt(v)||0;await this.plugin.saveSettings();this.plugin.updateAllViews();})});
     new Setting(c).setName(t('settings.weeklyGoal')).setDesc(t('settings.weeklyGoalDesc'))
       .addText(tx=>{tx.inputEl.type='number';tx.inputEl.min='0';tx.setValue(String(s.weeklyGoal||5000));tx.onChange(async v=>{s.weeklyGoal=parseInt(v)||0;await this.plugin.saveSettings();this.plugin.updateAllViews();})});
-    // Sound
     new Setting(c).setName(t('settings.soundEnabled')).setDesc(t('settings.soundEnabledDesc'))
       .addToggle(tx=>tx.setValue(s.soundEnabled||false).onChange(async v=>{s.soundEnabled=v;await this.plugin.saveSettings()}));
-    // Background
     new Setting(c).setName(t('settings.bgEnabled')).setDesc(t('settings.bgEnabledDesc'))
       .addToggle(tx=>tx.setValue(s.bgEnabled||false).onChange(async v=>{s.bgEnabled=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();}));
     new Setting(c).setName(t('settings.bgColor')).setDesc(t('settings.bgColorDesc'))
       .addText(tx=>{tx.inputEl.type='color';tx.setValue(s.bgColor||'#222831');tx.onChange(async v=>{s.bgColor=v;await this.plugin.saveSettings();this.plugin.rebuildAllViews();})});
-
-    // ── Misc ──
+    // Misc
     c.createEl('h3',{text:`🔧 ${t('settings.misc')}`});
     new Setting(c).setName(t('settings.keyGap')).setDesc(t('settings.keyGapDesc'))
       .addDropdown(d=>d.addOption('0',t('settings.gapTight')).addOption('1',t('settings.gap1')).addOption('2',t('settings.gap2')).addOption('3',t('settings.gap3')).addOption('4',t('settings.gapLoose')).setValue(String(s.keyGap)).onChange(async v=>{s.keyGap=parseInt(v);await this.plugin.saveSettings();this.plugin.rebuildAllViews();}));
     new Setting(c).setName(t('settings.ignoreModifiers')).setDesc(t('settings.ignoreModifiersDesc'))
       .addToggle(tx=>tx.setValue(s.ignoreModifiers).onChange(async v=>{s.ignoreModifiers=v;await this.plugin.saveSettings();}));
-
-    // ── Reset ──
+    // Management
     c.createEl('h3',{text:`🔄 ${t('settings.management')}`});
     new Setting(c).setName('📤 '+t('settings.exportData')||'导出数据').setDesc(t('settings.exportDataDesc')||'下载 JSON 格式的花园数据备份')
       .addButton(b=>b.setButtonText('📤 导出').onClick(async()=>{
-        const data={keyCounts:s.keyCounts,totalKeystrokes:s.totalKeystrokes,dailyCounts:s.dailyCounts,weatherTriggered:s.weatherTriggered||{}};
+        const data={keyCounts:s.keyCounts,totalKeystrokes:s.totalKeystrokes,dailyCounts:s.dailyCounts,weatherTriggered:s.weatherTriggered||{},pomodoroCount:s.pomodoroCount||0,pomodoroSessions:s.pomodoroSessions||[]};
         const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
         const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='keyboard-garden-v2-backup.json';a.click();URL.revokeObjectURL(a.href);
       }));
@@ -671,13 +1053,15 @@ class KeyboardGardenV2SettingTab extends PluginSettingTab {
           if(d.totalKeystrokes||d.totalKeystrokes===0)s.totalKeystrokes=d.totalKeystrokes;
           if(d.dailyCounts)s.dailyCounts=d.dailyCounts;
           if(d.weatherTriggered)s.weatherTriggered=d.weatherTriggered;
+          if(d.pomodoroCount||d.pomodoroCount===0)s.pomodoroCount=d.pomodoroCount;
+          if(d.pomodoroSessions)s.pomodoroSessions=d.pomodoroSessions;
           await this.plugin.saveSettings();this.plugin.rebuildAllViews();
           new Notice('✅ 数据导入成功！');
         }catch(e){new Notice('❌ 文件格式错误：'+e.message);}};
         i.click();
       }));
     new Setting(c).setName(t('settings.reset')).setDesc(t('settings.resetDesc'))
-      .addButton(b=>b.setButtonText(t('settings.resetBtn')).setWarning().onClick(async()=>{s.keyCounts={};s.totalKeystrokes=0;s.dailyCounts={};s.weatherTriggered={};await this.plugin.saveSettings();this.plugin.rebuildAllViews();}));
+      .addButton(b=>b.setButtonText(t('settings.resetBtn')).setWarning().onClick(async()=>{s.keyCounts={};s.totalKeystrokes=0;s.dailyCounts={};s.weatherTriggered={};s.pomodoroCount=0;s.pomodoroSessions=[];await this.plugin.saveSettings();this.plugin.rebuildAllViews();}));
   }
 }
 
@@ -694,7 +1078,7 @@ module.exports=class KeyboardGardenV2Plugin extends Plugin{
     this.addRibbonIcon('lucide-flower-2','Keyboard Garden V2',()=>this.activateView());
     this._kd=e=>this.hk(e);document.addEventListener('keydown',this._kd);
     this.addCommand({id:'open-kg-v2',name:'Open Keyboard Garden V2',callback:()=>this.activateView()});
-    this._lwt=0;this._ts=[];this._aud=null;
+    this._lwt=0;this._ts=[];this._aud=null;this._pomoState='idle';this._pomoLeft=null;this._pomoPauseType=null;
     this._setupDarkMode();
     console.log(`[KG V2] Loaded | Total:${this.getTotalKeystrokes()} | Today:${getPeriod(this.settings.dailyCounts||{},'today')}`);
   }
@@ -712,6 +1096,7 @@ module.exports=class KeyboardGardenV2Plugin extends Plugin{
     this.settings.totalKeystrokes=this.settings.totalKeystrokes||0;
     if(!this.settings.customEmojis)this.settings.customEmojis=[];this.settings.customEmojis.length=9;
     if(!this.settings.customTheme)this.settings.customTheme={top:'#F5F5F5',bottom:'#D4D4D4',border:'#BDBDBD',hover:'#9E9E9E',label:'#333333'};
+    if(!this.settings.pomodoroSessions)this.settings.pomodoroSessions=[];
   }
   async saveSettings(){await this.saveData(this.settings)}
   rebuildAllViews(){if(this._sel)this._sel.textContent=buildCSS(this.settings);this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach(l=>{if(l.view instanceof KeyboardGardenV2View)l.view.rebuildView();});}
